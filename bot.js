@@ -1,4 +1,6 @@
 var Bot = require('slackbots');
+var dotenv = require('dotenv');
+    dotenv.load();
 
 var slackBotToken = process.env.SLACK_BOT_TOKEN || '';
 var slackBotName  = process.env.SLACK_BOT_NAME  || '';
