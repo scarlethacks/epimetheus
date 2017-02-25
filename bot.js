@@ -41,7 +41,7 @@ slack.postTo = (params) => {
 	slack.chat.postMessage(params, (err, data) => {
 		if(err){
 			if(err.message.indexOf('chat:write:bot') > -1){
-				console.log('Error suppressed.');
+				//console.log('Error suppressed.');
 			}
 			else{
 				console.error(err);
