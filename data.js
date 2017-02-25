@@ -9,40 +9,29 @@ var config = {
 firebase.initializeApp(config);
 var db = firebase.database();
 
+var from = new Date('2/24/2017').getTime();
+var to = new Date('2/25/2017').getTime();
+
 module.exports = {
 
-	init: () => {
-
+	datecount: () => {
+		var startTime = Date.now();
 		return new Promise((resolve, reject) => {
-
-			var userMap = {};
-			var prometheusRef = db.ref('prometheus');
-			console.log('Send request.');
-			prometheusRef.once('value', (snapshot) => {
-				console.log('Start mapping.');
-				var dataMap = snapshot.val();
-				for(var uid in dataMap.users){
-					if(uid !== 'ANONYMOUS_USER'){
-						var visitList = Object.keys(dataMap.visits[uid]).map((vid) => {
-							return dataMap.visits[uid][vid];
-						}).filter((visit) => {
-							return true;
-						}).sort((a, b) => {
-							return a.meta.datetime.timestamp - b.meta.datetime.timestamp;
-						});
-						userMap[uid] = {
-							profile: dataMap.users[uid].profile,
-							visits: visitList,
-							lastVisit: dataMap.users[uid].lastVisit
-						}
-					}
-				}
-				console.log('Resolve request.');
-				resolve(userMap);
+			console.log('started query');
+			var ref = db.ref('prometheus/users');
+			var query = ref.orderByChild('lastVisit').startAt(from).endAt(to);
+			query.once('value', (snapshot) => {
+				var val = snapshot.val();
+				var userCount = Object.keys(val).length;
+				console.log(`Counted ${userCount} users.`)
+				var dur = Math.floor((Date.now() - startTime) / 1000);
+				console.log(`Completed in ${dur.toFixed(1)} sec.`);
+				var res = `Counted ${userCount} users.`;
+				resolve({
+					text: res
+				});
 			}).catch(reject);
-
 		});
-
 	}
 
 }

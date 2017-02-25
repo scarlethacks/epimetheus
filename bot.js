@@ -1,5 +1,5 @@
 var Bot = require('slackbots');
-var Data = require('./data');
+var Epimetheus = require('./data');
 var dotenv = require('dotenv');
 	dotenv.load();
 
@@ -11,16 +11,26 @@ var bot = new Bot({
 	name : slackBotName
 });
 
-var main = (userMap) => {
+bot.knownUsers = {};
+
+var main = () => {
 
 	console.log('Bot started.');
-	//console.log(userMap);
-	var userCount = Object.keys(userMap).length;
-	console.log(`Prometheus counted ${userCount} users.`);
 
 	bot.on('message', (data) => {
 		try{
-			//console.log(data);
+			if(data.type === 'user_typing'){
+				if(!bot.knownUsers[data.user]){
+					bot._api('users_info', {user: data.user}).then((userData) => {
+						userData.user.last = '';
+						bot.knownUsers[userData.user.id] = userData.user;
+					});
+				}
+			}
+			else if(data.type === 'message' && data.username !== 'Epimetheus'){
+				console.log(data);
+				bot.postTo('metrics', 'Sorry for the problems.');
+			}
 		}
 		catch(e){
 			console.error(e);
@@ -29,9 +39,7 @@ var main = (userMap) => {
 
 }
 
-Data.init().then((userMap) => {
-	main(userMap);
-});
+main();
 
 /*bot.knownUsers = {};
 
