@@ -9,15 +9,14 @@ var config = {
 firebase.initializeApp(config);
 var db = firebase.database();
 
-var from = new Date('2/24/2017').getTime();
-var to = new Date('2/25/2017').getTime();
-
 module.exports = {
 
-	datecount: () => {
+	countActiveUsers: () => {
 		var startTime = Date.now();
 		return new Promise((resolve, reject) => {
-			console.log('started query');
+			console.log('Started Query: countActiveUsers');
+			var from = new Date('2/24/2017').getTime();
+			var to = new Date('2/25/2017').getTime();
 			var ref = db.ref('prometheus/users');
 			var query = ref.orderByChild('lastVisit').startAt(from).endAt(to);
 			query.once('value', (snapshot) => {
@@ -26,7 +25,7 @@ module.exports = {
 				console.log(`Counted ${userCount} users.`)
 				var dur = Math.floor((Date.now() - startTime) / 1000);
 				console.log(`Completed in ${dur.toFixed(1)} sec.`);
-				var res = `Counted ${userCount} users.`;
+				var res = `I counted ${userCount} users.`;
 				resolve({
 					text: res
 				});
