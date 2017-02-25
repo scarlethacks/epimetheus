@@ -11,7 +11,22 @@ var bot = new Bot({
 	name : slackBotName
 });
 
+var liveTime = Date.now() / 100;
 bot.knownUsers = {};
+
+var convertTime = (timestamp) => {
+	var ft = parseFloat(timestamp, 10);
+	var t = 10 * ft;
+	return t;
+}
+
+var isConversing = (data) => {
+	var dts = convertTime(data.ts);
+	var msg = data.type === 'message';
+	var other = data.username !== 'Epimetheus';
+	var ts = dts > liveTime;
+	return (msg && other && ts);
+}
 
 var main = () => {
 
@@ -19,17 +34,9 @@ var main = () => {
 
 	bot.on('message', (data) => {
 		try{
-			if(data.type === 'user_typing'){
-				if(!bot.knownUsers[data.user]){
-					bot._api('users_info', {user: data.user}).then((userData) => {
-						userData.user.last = '';
-						bot.knownUsers[userData.user.id] = userData.user;
-					});
-				}
-			}
-			else if(data.type === 'message' && data.username !== 'Epimetheus'){
-				console.log(data);
-				bot.postTo('metrics', 'Sorry for the problems.');
+			if(isConversing(data)){
+				var msg = `I heard: ${data.text}.`;
+				bot.postTo('metrics', msg);
 			}
 		}
 		catch(e){
