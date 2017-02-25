@@ -4,16 +4,13 @@ var dotenv = require('dotenv');
 	dotenv.load();
 
 var config = {
-	apiKey: "AIzaSyBXXQFcl6qtakmkFeh0jzy_jjjIDpb1DlY",
-	authDomain: "prometheusjs.firebaseapp.com",
-	databaseURL: "https://prometheusjs.firebaseio.com",
-	storageBucket: "firebase-prometheusjs.appspot.com",
-	messagingSenderId: "433905102741"
+	apiKey: process.env.FIREBASE_API_KEY,
+	databaseURL: process.env.FIREBASE_DATABASE_URL
 };
 firebase.initializeApp(config);
 var db = firebase.database();
 
-var ref = db.ref('prometheus/users/jenny');
+var ref = db.ref('prometheus/users/catherine');
 ref.once('value', (snapshot) => {
 	var val = snapshot.val();
 	console.log(val);
