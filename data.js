@@ -48,6 +48,8 @@ var parseDateRange = (message) => {
 	return [from, to];
 }
 
+var USER_MAP = false;
+
 module.exports = {
 
 	countActiveUsers: (message) => {
@@ -69,6 +71,30 @@ module.exports = {
 				resolve({
 					text: res
 				});
+			}).catch(reject);
+		});
+	},
+
+	mapUsers: (message) => {
+		var startTime = Date.now();
+		return new Promise((resolve, reject) => {
+			console.log('Started Query: mapUsers');
+			var ref = db.ref('prometheus/visits');
+			var query = ref.limitToLast(2000);
+			query.on('child_added', (snapshot) => {
+				var val = snapshot.val();
+				var dur = Math.floor((Date.now() - startTime) / 1000);
+				console.log(snapshot.key, 'Size: ' + Object.keys(val).length, dur + ' secs.');
+				/*USER_MAP = val;
+				var userCount = Object.keys(val).length;
+				console.log(`Counted ${userCount} users.`)
+				var dur = Math.floor((Date.now() - startTime) / 1000);
+				console.log(`Completed in ${dur.toFixed(1)} sec.`);
+				var res = `I counted ${userCount} users with visits.`;
+				resolve({
+					text: res
+				});
+				console.log(Object.keys(USER_MAP).length);*/
 			}).catch(reject);
 		});
 	}

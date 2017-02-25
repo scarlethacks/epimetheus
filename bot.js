@@ -75,6 +75,18 @@ bot.message((message) => {
 				});
 			});
 		}
+		else if(message.text === 'map users'){
+			slack.postTo({
+				channel: 'metrics',
+				text: 'Let me check...'
+			});
+			epimetheus.mapUsers(message.text).then((res) => {
+				slack.postTo({
+					channel: 'metrics',
+					text: res.text
+				});
+			});
+		}
 		else{
 			var msg = `I heard: ${message.text}.`;
 			slack.postTo('metrics', msg);
