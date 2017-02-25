@@ -14,10 +14,10 @@ var HOUR = MINUTE * 60;
 var DAY = HOUR *24;
 
 
-var parseDateRange = (message) => {
+var parseDateRange = (message, delimiter) => {
 	var from = false;
 	var to = false;
-	var range = message.split('active ')[1].split('?')[0];
+	var range = message.split(delimiter)[1].split('?')[0];
 	switch(range){
 		case 'today':
 			var now = Date.now();
@@ -69,7 +69,7 @@ var getVisitsByUser = (params) => {
 var getVisits = (params) => {
 	return new Promise((resolve, reject) => {
 		var ref = db.ref('prometheus/users');
-		var query = ref.orderByChild('lastVisit').startAt(from).endAt(to);
+		var query = ref.orderByChild('lastVisit').startAt(params.from).endAt(Date.now()); // Because more recent users can still have relevant visits
 		query.once('value', (snapshot) => {
 			var promises = [];
 			var userMap = snapshot.val();
@@ -151,7 +151,7 @@ module.exports = {
 		var startTime = Date.now();
 		return new Promise((resolve, reject) => {
 			console.log('Started Query: countActiveUsers');
-			var range = parseDateRange(message);
+			var range = parseDateRange(message, 'active ');
 			var from = range[0];
 			var to = range[1];
 			var ref = db.ref('prometheus/users');
@@ -191,6 +191,32 @@ module.exports = {
 				});
 				console.log(Object.keys(USER_MAP).length);*/
 			}).catch(reject);
+		});
+	},
+
+	countCreatedMeetings: (message) => {
+		var startTime = Date.now();
+		return new Promise((resolve, reject) => {
+			console.log('Started Query: countActiveUsers');
+			var range = parseDateRange(message, 'created ');
+			var from = range[0];
+			var to = range[1];
+			getVisits({
+				from: from,
+				to: to
+			}).then((res) => {
+				console.log(res);
+				var dur = Math.floor((Date.now() - startTime) / 1000);
+				console.log(`Fetched in ${dur.toFixed(1)} sec.`);
+
+
+				var res = `I counted ${meetingCount} created meetings.`;
+				resolve({
+					text: res
+				});
+
+			}).catch(reject);
+
 		});
 	}
 
