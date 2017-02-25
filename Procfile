@@ -1,0 +1,1 @@
+web: node web.js & node bot.js
