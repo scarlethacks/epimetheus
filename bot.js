@@ -10,6 +10,10 @@ var slackToken = process.env.SLACK_TOKEN || '';
 var slackBotToken = process.env.SLACK_BOT_TOKEN || '';
 var slackBotName  = process.env.SLACK_BOT_NAME  || '';
 
+slack.auth.test({token: slackBotToken}, (err, data) => {
+	//console.log(err, data)
+});
+
 var liveTime = Date.now() / 1000;
 
 var convertTime = (timestamp) => {
@@ -26,15 +30,22 @@ var isConversing = (data) => {
 }
 
 slack.postTo = (params) => {
-	params.token = slackToken;
+	params.token = slackBotToken;
+	params.as_user = true;
 	/*{
 		token: slackToken,
 		channel: 'metrics',
-		text: `I heard: ${message.text}`
+		text: `I heard: ${message.text}`,
+		as_user: true
 	}*/
 	slack.chat.postMessage(params, (err, data) => {
 		if(err){
-			console.error(err);
+			if(err.message.indexOf('chat:write:bot') > -1){
+				console.log('Error suppressed.');
+			}
+			else{
+				console.error(err);
+			}
 		}
 	});
 }
@@ -52,6 +63,11 @@ bot.message((message) => {
 				channel: 'metrics',
 				text: 'Let me check...'
 			});
+			/*bot.ws.send(JSON.stringify({
+				id: 10,
+				type: 'typing',
+				channel: 'C483A3GBG'
+			}));*/
 			epimetheus.countActiveUsers().then((res) => {
 				slack.postTo({
 					channel: 'metrics',
