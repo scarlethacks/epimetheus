@@ -48,7 +48,102 @@ var parseDateRange = (message) => {
 	return [from, to];
 }
 
-var USER_MAP = false;
+var USER_MAP = {};
+
+var getVisitsByUser = (params) => {
+	return new Promise((resolve, reject) => {
+		var ref = db.ref('prometheus/visits/' + params.uid);
+		var query = ref.orderByChild('meta/datetime/timestamp').startAt(params.from).endAt(params.to);
+		query.once('value', (snapshot) => {
+			var nodes = snapshot.val();
+			resolve({
+				uid: params.uid,
+				from: params.from,
+				to: params.to,
+				visits: nodes
+			});
+		}).catch(nodes);
+	});
+}
+
+var getVisits = (params) => {
+	return new Promise((resolve, reject) => {
+		var ref = db.ref('prometheus/users');
+		var query = ref.orderByChild('lastVisit').startAt(from).endAt(to);
+		query.once('value', (snapshot) => {
+			var promises = [];
+			var userMap = snapshot.val();
+			for(var uid in userMap){
+				if(USER_MAP[uid]){
+					var entry = USER_MAP[uid];
+					var needOlder = entry.from > params.from;
+					var needNewer = entry.to < params.to;
+					if(needNewer && needOlder){
+						var p = getVisitsByUser({
+							uid: uid,
+							from: params.from,
+							to: params.to
+						});
+						promises.push(p);
+					}
+					else if(needOlder){
+						var p = getVisitsByUser({
+							uid: uid,
+							from: params.from,
+							to: entry.from
+						});
+						promises.push(p);
+					}
+					else if(needNewer){
+						var p = getVisitsByUser({
+							uid: uid,
+							from: entry.to,
+							to: params.to
+						});
+						promises.push(p);
+					}
+					else{
+						// Sufficient data
+					}
+				}
+				else{
+					var p = getVisitsByUser({
+						uid: uid,
+						from: params.from,
+						to: params.to
+					});
+					promises.push(p);
+				}
+			}
+			Promise.all(promises).then((requests) => {
+				for(var r = 0; r < requests.length; r++){
+					var req = requests[r];
+					var uid = req.uid;
+					var visits = req.visits;
+					if(!USER_MAP[uid]){
+						USER_MAP[uid] = {
+							from: req.from,
+							to: req.to,
+							visits: {}
+						}
+					}
+					if(USER_MAP[uid].from > req.from){
+						USER_MAP[uid].from = req.from;
+					}
+					if(USER_MAP[uid].to < req.to){
+						USER_MAP[uid].to = req.to;
+					}
+					for(var vid in visits){
+						USER_MAP[uid].visits[vid] = visits[vid];
+					}
+				}
+				resolve({
+					ready: true
+				});
+			}).catch(reject);
+		}).catch(reject);
+	});
+}
 
 module.exports = {
 
