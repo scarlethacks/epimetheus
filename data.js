@@ -9,14 +9,46 @@ var config = {
 firebase.initializeApp(config);
 var db = firebase.database();
 
+var MINUTE = 1000 * 60;
+var HOUR = MINUTE * 60;
+var DAY = HOUR *24;
+
 module.exports = {
 
-	countActiveUsers: () => {
+	countActiveUsers: (message) => {
 		var startTime = Date.now();
 		return new Promise((resolve, reject) => {
 			console.log('Started Query: countActiveUsers');
-			var from = new Date('2/24/2017').getTime();
-			var to = new Date('2/25/2017').getTime();
+			var from = false;
+			var to = false;
+			var range = message.split('active ')[1].split('?')[0];
+			switch(range){
+				case 'today':
+					var now = Date.now();
+					from = now - (now % DAY);
+					to = from + DAY;
+					break;
+				case 'yesterday':
+				var now = Date.now();
+					from = (now - (now % DAY)) - DAY;
+					to = now - (now % DAY);
+					break;
+				default:
+					var dates = range.split('between ')[1].split(' and ');
+					try{
+						from = new Date(dates[0]).getTime();
+						to = new Date(dates[1]).getTime();
+					}
+					catch(e){
+						console.log(dates);
+					}
+					if(!(from && to)){
+						from = new Date('2/24/2017').getTime();
+						to = new Date('2/25/2017').getTime();
+					}
+					break;
+			}
+			console.log(new Date(from), '-->', new Date(to));
 			var ref = db.ref('prometheus/users');
 			var query = ref.orderByChild('lastVisit').startAt(from).endAt(to);
 			query.once('value', (snapshot) => {

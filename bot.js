@@ -58,7 +58,7 @@ bot.started((payload) => {
 bot.message((message) => {
 	//console.log(message);
 	if(isConversing(message)){
-		if(message.text === 'How many users were active today?'){
+		if(message.text.indexOf('How many users were active') > -1){
 			slack.postTo({
 				channel: 'metrics',
 				text: 'Let me check...'
@@ -68,7 +68,7 @@ bot.message((message) => {
 				type: 'typing',
 				channel: 'C483A3GBG'
 			}));*/
-			epimetheus.countActiveUsers().then((res) => {
+			epimetheus.countActiveUsers(message.text).then((res) => {
 				slack.postTo({
 					channel: 'metrics',
 					text: res.text
