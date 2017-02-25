@@ -56,13 +56,18 @@ var getVisitsByUser = (params) => {
 		var query = ref.orderByChild('meta/datetime/timestamp').startAt(params.from).endAt(params.to);
 		query.once('value', (snapshot) => {
 			var nodes = snapshot.val();
+			var size = 0;
+			if(nodes){
+				size = Object.keys(nodes).length;
+			}
+			console.log(`Resolved for ${params.uid} with ${size} nodes.`);
 			resolve({
 				uid: params.uid,
 				from: params.from,
 				to: params.to,
 				visits: nodes
 			});
-		}).catch(nodes);
+		}).catch(reject);
 	});
 }
 
@@ -73,6 +78,7 @@ var getVisits = (params) => {
 		query.once('value', (snapshot) => {
 			var promises = [];
 			var userMap = snapshot.val();
+			console.log(`Retrieved ${Object.keys(userMap).length} users in date range.`);
 			for(var uid in userMap){
 				if(USER_MAP[uid]){
 					var entry = USER_MAP[uid];
@@ -85,6 +91,7 @@ var getVisits = (params) => {
 							to: params.to
 						});
 						promises.push(p);
+						console.log(`Full promise sent for ${uid}`);
 					}
 					else if(needOlder){
 						var p = getVisitsByUser({
@@ -93,6 +100,7 @@ var getVisits = (params) => {
 							to: entry.from
 						});
 						promises.push(p);
+						console.log(`Partial promise sent for ${uid}`);
 					}
 					else if(needNewer){
 						var p = getVisitsByUser({
@@ -101,6 +109,7 @@ var getVisits = (params) => {
 							to: params.to
 						});
 						promises.push(p);
+						console.log(`Partial promise sent for ${uid}`);
 					}
 					else{
 						// Sufficient data
@@ -113,34 +122,44 @@ var getVisits = (params) => {
 						to: params.to
 					});
 					promises.push(p);
+					console.log(`Full promise sent for ${uid}`);
 				}
 			}
-			Promise.all(promises).then((requests) => {
-				for(var r = 0; r < requests.length; r++){
-					var req = requests[r];
-					var uid = req.uid;
-					var visits = req.visits;
-					if(!USER_MAP[uid]){
-						USER_MAP[uid] = {
-							from: req.from,
-							to: req.to,
-							visits: {}
+			var prom = Promise.all(promises);
+			console.log(prom);
+			try{
+				prom.then((requests) => {
+					console.log(`All ${requests.length} promises received.`);
+					for(var r = 0; r < requests.length; r++){
+						var req = requests[r];
+						var uid = req.uid;
+						var visits = req.visits;
+						if(!USER_MAP[uid]){
+							USER_MAP[uid] = {
+								from: req.from,
+								to: req.to,
+								visits: {}
+							}
+						}
+						if(USER_MAP[uid].from > req.from){
+							USER_MAP[uid].from = req.from;
+						}
+						if(USER_MAP[uid].to < req.to){
+							USER_MAP[uid].to = req.to;
+						}
+						for(var vid in visits){
+							USER_MAP[uid].visits[vid] = visits[vid];
 						}
 					}
-					if(USER_MAP[uid].from > req.from){
-						USER_MAP[uid].from = req.from;
-					}
-					if(USER_MAP[uid].to < req.to){
-						USER_MAP[uid].to = req.to;
-					}
-					for(var vid in visits){
-						USER_MAP[uid].visits[vid] = visits[vid];
-					}
-				}
-				resolve({
-					ready: true
-				});
-			}).catch(reject);
+					resolve({
+						ready: true
+					});
+				}).catch(reject);
+			}
+			catch(e){
+				console.log(e);
+				console.error(e);
+			}
 		}).catch(reject);
 	});
 }
@@ -197,7 +216,7 @@ module.exports = {
 	countCreatedMeetings: (message) => {
 		var startTime = Date.now();
 		return new Promise((resolve, reject) => {
-			console.log('Started Query: countActiveUsers');
+			console.log('Started Query: countCreatedMeetings');
 			var range = parseDateRange(message, 'created ');
 			var from = range[0];
 			var to = range[1];
@@ -209,7 +228,25 @@ module.exports = {
 				var dur = Math.floor((Date.now() - startTime) / 1000);
 				console.log(`Fetched in ${dur.toFixed(1)} sec.`);
 
+				var meetingCount = 0;
+				for(var uid in USER_MAP){
+					var visits = Object.keys(USER_MAP[uid].visits).map((vid) => {
+						return USER_MAP[uid].visits[vid];
+					}).filter((visit) => {
+						var keep = false;
+						var lo = visit.meta.datetime.timestamp >= from;
+						var hi = visit.meta.datetime.timestamp <= to;
+						if(lo && hi){
+							keep = true;
+						}
+						return keep;
+					});
+					meetingCount += visits.filter((data) => {
+						return data.visit.type === 'CREATE_MEETING';
+					}).length;
+				}
 
+				console.log(`Computed in ${dur.toFixed(1)} sec.`);
 				var res = `I counted ${meetingCount} created meetings.`;
 				resolve({
 					text: res
