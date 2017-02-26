@@ -9,7 +9,11 @@ For web app analytics to be meaningful, they must extend beyond just pageviews. 
 
 ## Usage
 
-Writing this code:
+You can configure your Slack bot to do this:
+
+![Count users over a given time range.](https://github.com/vingkan/epimetheus/blob/master/docs/count-users.png)
+
+...just by writing this code:
 
 ```javascript
 bot.calculations = {
@@ -32,11 +36,6 @@ bot.calculations = {
 	...
 }
 ```
-
-...enables you to ask your bot this:
-
-![Count users over a given time range.](https://github.com/vingkan/epimetheus/blob/master/docs/count-users.png)
-
 
 ## Writing Calculations
 
@@ -73,7 +72,7 @@ Define the default properties of an object to store temporary data during the ca
 
 Define custom method to evaluate each relevant users and their visits.
 
-Params: state (object) and visits (list of visits, [see Data Structure]{#datastructure})
+Params: state (object) and visits (list of visits, [see Data Structure](https://github.com/vingkan/epimetheus#data-structure))
 Return: state (modified or not)
 
 ```javascript
