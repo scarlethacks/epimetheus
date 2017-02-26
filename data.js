@@ -9,44 +9,6 @@ var config = {
 firebase.initializeApp(config);
 var db = firebase.database();
 
-var MINUTE = 1000 * 60;
-var HOUR = MINUTE * 60;
-var DAY = HOUR *24;
-
-
-var parseDateRange = (message, delimiter) => {
-	var from = false;
-	var to = false;
-	var range = message.split(delimiter)[1].split('?')[0];
-	switch(range){
-		case 'today':
-			var now = Date.now();
-			from = now - (now % DAY);
-			to = from + DAY;
-			break;
-		case 'yesterday':
-		var now = Date.now();
-			from = (now - (now % DAY)) - DAY;
-			to = now - (now % DAY);
-			break;
-		default:
-			var dates = range.split('between ')[1].split(' and ');
-			try{
-				from = new Date(dates[0]).getTime();
-				to = new Date(dates[1]).getTime();
-			}
-			catch(e){
-				console.log(dates);
-			}
-			if(!(from && to)){
-				from = new Date('2/24/2017').getTime();
-				to = new Date('2/25/2017').getTime();
-			}
-			break;
-	}
-	//console.log(new Date(from), '-->', new Date(to));
-	return [from, to];
-}
 
 var USER_MAP = {};
 
@@ -78,7 +40,7 @@ var getVisits = (params) => {
 		query.once('value', (snapshot) => {
 			var promises = [];
 			var userMap = snapshot.val();
-			console.log(`Retrieved ${Object.keys(userMap).length} users in date range.`);
+			//console.log(`Retrieved ${Object.keys(userMap).length} users in date range.`);
 			if(userMap['ANONYMOUS_USER']){
 				delete userMap['ANONYMOUS_USER'];
 			}
@@ -129,9 +91,9 @@ var getVisits = (params) => {
 				}
 			}
 			var prom = Promise.all(promises);
-			console.log(prom);
+			//console.log(prom);
 			prom.then((requests) => {
-				console.log(`All ${requests.length} promises received.`);
+				//console.log(`All ${requests.length} promises received.`);
 				for(var r = 0; r < requests.length; r++){
 					var req = requests[r];
 					var uid = req.uid;
@@ -166,60 +128,24 @@ var getVisits = (params) => {
 	});
 }
 
-var classifyUsers = (params) => {
-	return new Promise((resolve, reject) => {
-		var ref = db.ref('prometheus/users');
-		var query = ref.orderByChild('lastVisit').startAt(params.from).endAt(Date.now()); // Because more recent users can still have relevant visits
-		query.once('value', (snapshot) => {
-			var promises = [];
-			var userMap = snapshot.val();
-			console.log(`Retrieved ${Object.keys(userMap).length} users in date range.`);
-			if(userMap['ANONYMOUS_USER']){
-				delete userMap['ANONYMOUS_USER'];
-			}
-			for(var uid in userMap){
-				if(USER_MAP[uid]){
-					if(!USER_MAP[uid].tags){
-						if(!(params.tag in USER_MAP[uid].tags)){
-							var visRef = db.ref('prometheus/visits/' + uid);
-							var visProm = params.classifier(visRef);
-							promises.push(visProm);
-						}
-						else{
-							// Already tagged
-						}
-					}
-					else{
-						// Already tagged
-					}
-				}
-				else{
-					var visRef = db.ref('prometheus/visits/' + uid);
-					var visProm = params.classifier(visRef);
-					promises.push(visProm);
-				}
-			}
-			var prom = Promise.all(promises);
-			console.log(prom);
-			prom.then((queries) => {
-				console.log(`All ${queries.length} promises received.`);
-				for(var r = 0; r < queries.length; r++){
-					var qry = queries[r];
-					if(!USER_MAP[uid].tags){
-						USER_MAP[uid].tags = {};
-					}
-					USER_MAP[uid].tags[params.tag] = qry.status;
-				}
-				resolve({
-					ready: true
-				});
-			});
-		});
-	});
-}
-
 var uniqueList = (list) => {
 	return [...new Set(list)];
+}
+
+var getVisitsInRange = (params) => {
+	return Object.keys(USER_MAP[params.uid].visits).map((vid) => {
+		return USER_MAP[params.uid].visits[vid];
+	}).filter((visit) => {
+		var keep = false;
+		var lo = visit.meta.datetime.timestamp >= params.from;
+		var hi = visit.meta.datetime.timestamp <= params.to;
+		if(lo && hi){
+			keep = true;
+		}
+		return keep;
+	}).sort((a, b) => {
+		return a.meta.datetime.timestamp - b.meta.datetime.timestamp;
+	});
 }
 
 module.exports = {
@@ -236,10 +162,37 @@ module.exports = {
 			query.once('value', (snapshot) => {
 				var val = snapshot.val();
 				var userCount = Object.keys(val).length;
-				console.log(`Counted ${userCount} users.`)
+				//console.log(`Counted ${userCount} users.`)
 				var dur = Math.floor((Date.now() - startTime) / 1000);
 				console.log(`Completed in ${dur.toFixed(1)} sec.`);
 				var res = `I counted ${userCount} users.`;
+				resolve({
+					text: res
+				});
+			}).catch(reject);
+		});
+	},
+
+	count: (params) => {
+		var startTime = Date.now();
+		return new Promise((resolve, reject) => {
+			console.log('Started Query: ' + params.cid);
+			getVisits({
+				from: params.from,
+				to: params.to
+			}).then((res) => {
+				var count = 0;
+				for(var uid in USER_MAP){
+					var visits = getVisitsInRange({
+						uid: uid,
+						from: params.from,
+						to: params.to
+					});
+					count += params.aggregator(visits);
+				}
+				var dur = Math.floor((Date.now() - startTime) / 1000);
+				console.log(`Completed in ${dur.toFixed(1)} sec.`);
+				var res = params.response(count);
 				resolve({
 					text: res
 				});
@@ -261,16 +214,10 @@ module.exports = {
 
 				var meetingCount = 0;
 				for(var uid in USER_MAP){
-					var visits = Object.keys(USER_MAP[uid].visits).map((vid) => {
-						return USER_MAP[uid].visits[vid];
-					}).filter((visit) => {
-						var keep = false;
-						var lo = visit.meta.datetime.timestamp >= from;
-						var hi = visit.meta.datetime.timestamp <= to;
-						if(lo && hi){
-							keep = true;
-						}
-						return keep;
+					var visits = getVisitsInRange({
+						uid: uid,
+						from: from,
+						to: to
 					});
 					meetingCount += visits.filter((data) => {
 						return data.visit.type === 'CREATE_MEETING';
@@ -299,20 +246,14 @@ module.exports = {
 				from: from,
 				to: to
 			}).then((res) => {
-				console.log(res);
+				//console.log(res);
 
 				var leaderboard = {};
 				for(var uid in USER_MAP){
-					var visits = Object.keys(USER_MAP[uid].visits).map((vid) => {
-						return USER_MAP[uid].visits[vid];
-					}).filter((visit) => {
-						var keep = false;
-						var lo = visit.meta.datetime.timestamp >= from;
-						var hi = visit.meta.datetime.timestamp <= to;
-						if(lo && hi){
-							keep = true;
-						}
-						return keep;
+					var visits = getVisitsInRange({
+						uid: uid,
+						from: from,
+						to: to
 					});
 					var meetingCount = visits.filter((data) => {
 						return data.visit.type === 'CREATE_MEETING';
@@ -355,60 +296,22 @@ module.exports = {
 			var from = range[0];
 			var to = range[1];
 
-			var demoClassifier = (ref) => {
-				new Promise((resolve, reject) => {
-					var query = ref.orderByChild('visit/mid').equalTo('sample');
-					query.once('value', (snapshot) => {
-						resolve({
-							status: snapshot.exists()
-						});
-					}).catch(reject);
-				});
-			}
-
-			/*classifyUsers({
-				from: from,
-				to: to,
-				tag: 'usedDemo',
-				classifier: demoClassifier
-			}).then((done) => {
-				console.log('Classification:', done);*/
-
 			getVisits({
 				from: from,
 				to: to
 			}).then((res) => {
-				console.log('Visits:', res);
+				//console.log('Visits:', res);
 
-
-try{
 				var count = {};
 				var total = 0;
-				//var meetings = {};
 
 				for(var uid in USER_MAP){
 					var entry = USER_MAP[uid];
-					var visits = Object.keys(USER_MAP[uid].visits).map((vid) => {
-						return USER_MAP[uid].visits[vid];
-					}).filter((visit) => {
-						var keep = false;
-						var lo = visit.meta.datetime.timestamp >= from;
-						var hi = visit.meta.datetime.timestamp <= to;
-						if(lo && hi){
-							keep = true;
-						}
-						return keep;
+					var visits = getVisitsInRange({
+						uid: uid,
+						from: from,
+						to: to
 					});
-
-					/*if(!entry.tags){
-						USER_MAP[uid].tags = {};
-					}
-
-					USER_MAP[uid].tags['usedDemo'] = status;
-
-					console.log(entry.tags);
-
-					var status = entry.tags['usedDemo'];*/
 
 					var status = false;
 
@@ -430,19 +333,6 @@ try{
 						count[status]++;
 						total++;
 					}
-
-					/*if(!meetings[status]){
-						meetings[status] = 0;
-					}
-					meetings[status] += uniqueList(visits.filter((v) => {
-												var use = false;
-												if(v.visit.mid){
-													if(v.visit.mid !== 'sample'){
-														use = true;
-													}
-												}
-												return use;
-											})).length;*/
 				}
 
 				var res = `Conversion rates for demo page:\n`;
@@ -451,14 +341,9 @@ try{
 					false: 'Did not try Demo'
 				}
 				for(var s in {true: 1, false: 1}){
-					//var avg = meetings[s] / count[s];
-					//res += `${cat[s]}: ${avg.toFixed(2)}\n`;
 					var avg = (count[s] / total) * 100;
 					res += `${cat[s]}: ${avg.toFixed(2)}%\n`;
 				}
-
-				
-}catch(e){console.log(e)}
 
 				var dur = Math.floor((Date.now() - startTime) / 1000);
 				console.log(`Completed in ${dur.toFixed(1)} sec.`);
@@ -466,8 +351,6 @@ try{
 					text: res
 				});
 			}).catch(reject);
-
-			//}).catch(reject);
 
 		});
 	}
