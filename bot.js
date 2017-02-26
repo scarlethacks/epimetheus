@@ -92,7 +92,7 @@ bot.message((message) => {
 				});
 			});
 		}
-		else if(message.text.indexOf('How did the demo impact users') > -1){
+		else if(message.text.indexOf('How did the demo page convert') > -1){
 			slack.postTo({
 				channel: 'metrics',
 				text: 'Let me check...'

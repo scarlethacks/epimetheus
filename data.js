@@ -351,7 +351,7 @@ module.exports = {
 		var startTime = Date.now();
 		return new Promise((resolve, reject) => {
 			console.log('Started Query: demoAnalysis');
-			var range = parseDateRange(message, 'users ');
+			var range = parseDateRange(message, 'convert ');
 			var from = range[0];
 			var to = range[1];
 
@@ -366,74 +366,108 @@ module.exports = {
 				});
 			}
 
-			classifyUsers({
+			/*classifyUsers({
 				from: from,
 				to: to,
 				tag: 'usedDemo',
 				classifier: demoClassifier
 			}).then((done) => {
-				console.log('Classification:', done);
+				console.log('Classification:', done);*/
 
-				getVisits({
-					from: from,
-					to: to
-				}).then((res) => {
-					console.log('Visits:', res);
+			getVisits({
+				from: from,
+				to: to
+			}).then((res) => {
+				console.log('Visits:', res);
 
-					var count = {};
-					var meetings = {};
 
-					for(var uid in USER_MAP){
-						var entry = USER_MAP[uid];
-						var visits = Object.keys(USER_MAP[uid].visits).map((vid) => {
-							return USER_MAP[uid].visits[vid];
-						}).filter((visit) => {
-							var keep = false;
-							var lo = visit.meta.datetime.timestamp >= from;
-							var hi = visit.meta.datetime.timestamp <= to;
-							if(lo && hi){
-								keep = true;
-							}
-							return keep;
-						});
+try{
+				var count = {};
+				var total = 0;
+				//var meetings = {};
 
-						console.log(entry.tags);
-
-						var status = entry.tags['usedDemo'];
-						if(!count[status]){
-							count[status] = 0;
+				for(var uid in USER_MAP){
+					var entry = USER_MAP[uid];
+					var visits = Object.keys(USER_MAP[uid].visits).map((vid) => {
+						return USER_MAP[uid].visits[vid];
+					}).filter((visit) => {
+						var keep = false;
+						var lo = visit.meta.datetime.timestamp >= from;
+						var hi = visit.meta.datetime.timestamp <= to;
+						if(lo && hi){
+							keep = true;
 						}
-						if(!meeting[status]){
-							meeting[status] = 0;
-						}
-						count[status]++;
-						meeting[status] += uniqueList(visits.filter((v) => {
-													var use = false;
-													if(v.visit.mid){
-														if(v.visit.mid !== 'sample'){
-															use = true;
-														}
-													}
-													return use;
-												})).length;
-					}
-
-					var res = `Average meetings created by users who:\n`;
-					for(var s in count){
-						var avg = meeting[s] / count[s];
-						var cat = s ? 'Tried demo' : 'Did not try demo';
-						res += `${cat}: avg.toFixed(2)\n`;
-					}
-
-					
-					var dur = Math.floor((Date.now() - startTime) / 1000);
-					console.log(`Completed in ${dur.toFixed(1)} sec.`);
-					resolve({
-						text: res
+						return keep;
 					});
-				}).catch(reject);
 
+					/*if(!entry.tags){
+						USER_MAP[uid].tags = {};
+					}
+
+					USER_MAP[uid].tags['usedDemo'] = status;
+
+					console.log(entry.tags);
+
+					var status = entry.tags['usedDemo'];*/
+
+					var status = false;
+
+					for(var v = 0; v < visits.length; v++){
+						var visit = visits[v].visit;
+						if(visit.mid){
+							if(visit.mid === 'sample'){
+								status = true;
+								break;
+							}
+						}
+					}
+
+					if(!count[status]){
+						count[status] = 0;
+					}
+
+					if(visits.length > 0){
+						count[status]++;
+						total++;
+					}
+
+					/*if(!meetings[status]){
+						meetings[status] = 0;
+					}
+					meetings[status] += uniqueList(visits.filter((v) => {
+												var use = false;
+												if(v.visit.mid){
+													if(v.visit.mid !== 'sample'){
+														use = true;
+													}
+												}
+												return use;
+											})).length;*/
+				}
+
+				var res = `Conversion rates for demo page:\n`;
+				var cat = {
+					true: 'Tried Demo',
+					false: 'Did not try Demo'
+				}
+				for(var s in {true: 1, false: 1}){
+					//var avg = meetings[s] / count[s];
+					//res += `${cat[s]}: ${avg.toFixed(2)}\n`;
+					var avg = (count[s] / total) * 100;
+					res += `${cat[s]}: ${avg.toFixed(2)}%\n`;
+				}
+
+				
+}catch(e){console.log(e)}
+
+				var dur = Math.floor((Date.now() - startTime) / 1000);
+				console.log(`Completed in ${dur.toFixed(1)} sec.`);
+				resolve({
+					text: res
+				});
 			}).catch(reject);
+
+			//}).catch(reject);
 
 		});
 	}
