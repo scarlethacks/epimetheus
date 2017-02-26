@@ -7,7 +7,8 @@ This page features interesting calculations that capture how Epimetheus can allo
 
 Calculation to report what percentage of users tried the sample meeting demo.
 
-**Type:** `compare
+**Type:** `compare`
+
 **Team:** Omnipointment
 
 ![Omnipointment Compare Demo Page](https://github.com/vingkan/epimetheus/blob/master/docs/omni-compare-demo.png)
