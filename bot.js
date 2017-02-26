@@ -48,17 +48,35 @@ var DAY = HOUR *24;
 var parseDateRange = (message, delimiter) => {
 	var from = false;
 	var to = false;
+	console.log(message)
+	console.log(delimiter)
 	var range = message.split(delimiter)[1].split('?')[0];
+	var date = new Date();
+	var now = date.getTime();
 	switch(range){
 		case 'today':
-			var now = Date.now();
 			from = now - (now % DAY);
 			to = from + DAY;
 			break;
 		case 'yesterday':
-		var now = Date.now();
 			from = (now - (now % DAY)) - DAY;
 			to = now - (now % DAY);
+			break;
+		case 'this month':
+			from = new Date(date.getFullYear(), date.getMonth()).getTime();
+			to = now;
+			break;
+		case 'last month':
+			var y = date.getFullYear();
+			var m = date.getMonth();
+			var ny = y;
+			var nm = m - 1;
+			if(nm < 0){
+				nm = 11;
+				ny--;
+			}
+			from = new Date(ny, nm).getTime();
+			to = new Date(y, m).getTime();
 			break;
 		default:
 			var dates = range.split('between ')[1].split(' and ');
@@ -75,6 +93,7 @@ var parseDateRange = (message, delimiter) => {
 			}
 			break;
 	}
+	//console.log(new Date(from), '-->', new Date(to));
 	return [from, to];
 }
 
@@ -86,8 +105,40 @@ bot.calculations = {
 		aggregator: (visits) => {
 			return 1;
 		},
-		response: (res) => {
-			return `I counted ${res} users and no pandas.`;
+		response: (count) => {
+			return `I counted ${count} users.`;
+		}
+	},
+	countMeetings: {
+		question: 'How many meetings were active {in date range}?',
+		type: 'count',
+		aggregator: (visits) => {
+			return visits.filter((v) => {
+				return v.visit.mid || false;
+			}).length;
+		},
+		response: (count) => {
+			return `I counted ${count} active meetings.`;
+		}
+	},
+	rankCreators: {
+		question: 'Who were the top meeting creators {in date range}?',
+		type: 'rank',
+		aggregator: (visit) => {
+			return {
+				creates: visit.filter((v) => {
+					return v.visit.type === 'CREATE_MEETING';
+				}).length
+			}
+		},
+		filter: (user) => {
+			return user.creates > 0;
+		},
+		sort: (a, b) => {
+			return b.creates - a.creates;
+		},
+		response: (user, rank) => {
+			return `${user.profile.name} (${user.creates} meetings.)`;
 		}
 	}
 }
@@ -107,16 +158,13 @@ bot.init = () => {
 			for(var cid in bot.calculations){
 				var calc = bot.calculations[cid];
 				var trigger = calc.question.split('{in date range}?')[0];
-				var range = parseDateRange(message.text, trigger);
 				if(message.text.indexOf(trigger) > -1){
+					var range = parseDateRange(message.text, trigger);
 					var fn = epimetheus[calc.type]
-					fn({
-						cid: cid,
-						aggregator: calc.aggregator,
-						response: calc.response,
-						from: range[0],
-						to: range[1]
-					}).then((res) => {
+					calc.cid = cid;
+					calc.from = range[0];
+					calc.to = range[1];
+					fn(calc).then((res) => {
 						slack.postTo({
 							channel: slackChannel,
 							text: res.text

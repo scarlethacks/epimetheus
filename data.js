@@ -150,49 +150,26 @@ var getVisitsInRange = (params) => {
 
 module.exports = {
 
-	countActiveUsers: (message) => {
+	count: (calc) => {
 		var startTime = Date.now();
 		return new Promise((resolve, reject) => {
-			console.log('Started Query: countActiveUsers');
-			var range = parseDateRange(message, 'active ');
-			var from = range[0];
-			var to = range[1];
-			var ref = db.ref('prometheus/users');
-			var query = ref.orderByChild('lastVisit').startAt(from).endAt(to);
-			query.once('value', (snapshot) => {
-				var val = snapshot.val();
-				var userCount = Object.keys(val).length;
-				//console.log(`Counted ${userCount} users.`)
-				var dur = Math.floor((Date.now() - startTime) / 1000);
-				console.log(`Completed in ${dur.toFixed(1)} sec.`);
-				var res = `I counted ${userCount} users.`;
-				resolve({
-					text: res
-				});
-			}).catch(reject);
-		});
-	},
-
-	count: (params) => {
-		var startTime = Date.now();
-		return new Promise((resolve, reject) => {
-			console.log('Started Query: ' + params.cid);
+			console.log('Started Query: ' + calc.cid);
 			getVisits({
-				from: params.from,
-				to: params.to
+				from: calc.from,
+				to: calc.to
 			}).then((res) => {
 				var count = 0;
 				for(var uid in USER_MAP){
 					var visits = getVisitsInRange({
 						uid: uid,
-						from: params.from,
-						to: params.to
+						from: calc.from,
+						to: calc.to
 					});
-					count += params.aggregator(visits);
+					count += calc.aggregator(visits);
 				}
 				var dur = Math.floor((Date.now() - startTime) / 1000);
 				console.log(`Completed in ${dur.toFixed(1)} sec.`);
-				var res = params.response(count);
+				var res = calc.response(count);
 				resolve({
 					text: res
 				});
@@ -200,86 +177,38 @@ module.exports = {
 		});
 	},
 
-	countCreatedMeetings: (message) => {
+	rank: (calc) => {
 		var startTime = Date.now();
 		return new Promise((resolve, reject) => {
-			console.log('Started Query: countCreatedMeetings');
-			var range = parseDateRange(message, 'created ');
-			var from = range[0];
-			var to = range[1];
+			console.log('Started Query: ' + calc.cid);
 			getVisits({
-				from: from,
-				to: to
+				from: calc.from,
+				to: calc.to
 			}).then((res) => {
-
-				var meetingCount = 0;
-				for(var uid in USER_MAP){
-					var visits = getVisitsInRange({
-						uid: uid,
-						from: from,
-						to: to
-					});
-					meetingCount += visits.filter((data) => {
-						return data.visit.type === 'CREATE_MEETING';
-					}).length;
-				}
-
-				var dur = Math.floor((Date.now() - startTime) / 1000);
-				console.log(`Completed in ${dur.toFixed(1)} sec.`);
-				var res = `I counted ${meetingCount} created meetings.`;
-				resolve({
-					text: res
-				});
-			}).catch(reject);
-
-		});
-	},
-
-	topTenCreators: (message) => {
-		var startTime = Date.now();
-		return new Promise((resolve, reject) => {
-			console.log('Started Query: topTenCreators');
-			var range = parseDateRange(message, 'creators ');
-			var from = range[0];
-			var to = range[1];
-			getVisits({
-				from: from,
-				to: to
-			}).then((res) => {
-				//console.log(res);
-
 				var leaderboard = {};
 				for(var uid in USER_MAP){
 					var visits = getVisitsInRange({
 						uid: uid,
-						from: from,
-						to: to
+						from: calc.from,
+						to: calc.to
 					});
-					var meetingCount = visits.filter((data) => {
-						return data.visit.type === 'CREATE_MEETING';
-					}).length;
-					leaderboard[uid] = {
-						uid: uid,
-						count: meetingCount
-					}
+					var info = calc.aggregator(visits);
+					info.uid = uid;
+					leaderboard[uid] = info;
 				}
 				var top = Object.keys(leaderboard).map((uid) => {
 					return leaderboard[uid];
-				}).filter((u) => {
-					return u.count > 0;
-				}).sort((a, b) => {
-					return b.count - a.count;
-				}).slice(0, 10).map((leader) => {
-					var entry = USER_MAP[leader.uid];
-					leader.name = USER_MAP[leader.uid].profile.name || 'No Name';
+				}).filter(calc.filter).sort(calc.sort).slice(0, 10).map((leader) => {
+					leader.profile = USER_MAP[leader.uid].profile;
 					return leader;
 				});
-
-				var leaderRes = top.map((x, i) => {return `${i+1}. ${x.name} (${x.count} meetings)`}).join('\n');
-
+				var leaderRes = top.map((x, i) => {return `${i+1}. ${calc.response(x, i+1)}`}).join('\n');
 				var dur = Math.floor((Date.now() - startTime) / 1000);
 				console.log(`Completed in ${dur.toFixed(1)} sec.`);
-				var res = `Here they are!\n${leaderRes}`;
+				var res = `Rankings:\n${leaderRes}`;
+				if(top.length < 1){
+					res = `No relevant users to list.`;
+				}
 				resolve({
 					text: res
 				});
