@@ -175,10 +175,10 @@ Epimetheus `calculations` loop over all `visits` for all users that are in the d
 
 ## Other Resources
 
-* [Calculations Catalog](): Sample Calculations
+* [Calculations Catalog](https://github.com/vingkan/epimetheus/blob/master/docs/catalog.md): Sample Calculations
 * [Releases](https://github.com/vingkan/epimetheus/releases)
 * [License: MIT](https://github.com/vingkan/epimetheus/blob/master/LICENSE)
-* [Contributors]()
-* [Contributing Guide]()
+* [Contributors](https://github.com/vingkan/epimetheus/blob/master/docs/contributors.md)
+* [Contributing Guide](https://github.com/vingkan/epimetheus/blob/master/docs/contributing.md)
 * [Issues](https://github.com/vingkan/epimetheus/issues)
 * The latest version of PrometheusJS and full documentation can be found [on GitHub](https://github.com/vingkan/prometheus).
