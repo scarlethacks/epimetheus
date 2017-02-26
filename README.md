@@ -37,6 +37,25 @@ bot.calculations = {
 }
 ```
 
+## Getting Started
+
+Download the project folder and run `npm install`.
+
+Create a `.env` file in the top level directory with the following properties:
+
+```
+SLACK_TOKEN=xoxp-slack-token-00000
+SLACK_BOT_TOKEN=xoxb-slack-bot-token-00000
+SLACK_BOT_NAME=Bot Name
+FIREBASE_API_KEY=firebase-api-key
+FIREBASE_DATABASE_URL=https://firebase-url.firebaseio.com
+SLACK_CHANNEL=metrics
+```
+
+Edit `main.js` to write calculations. Run `node main` and navigate to the given Slack channel and start asking questions of your bot!
+
+While the node application is running locally, any Slack user from any device can run calculations by chatting with the bot in the given channel. After writing and testing calculations locally, deploy with a service like Heroku.
+
 ## Writing Calculations
 
 To define calculations, use the following properties:
@@ -72,7 +91,7 @@ Define the default properties of an object to store temporary data during the ca
 
 Define custom method to evaluate each relevant users and their visits.
 
-Params: state (object) and visits (list of visits, [see Data Structure](https://github.com/vingkan/epimetheus#data-structure))
+Params: state (object) and visits (list of visits, see Data Structure)
 Return: state (modified or not)
 
 ```javascript
@@ -152,3 +171,12 @@ Epimetheus `calculations` loop over all `visits` for all users that are in the d
 	}
 }
 ```
+
+## Other Resources
+
+* [Releases]()
+* [License: MIT]()
+* [Contributors]()
+* [Contributing Guide]()
+* [Issues]()
+* The latest version of PrometheusJS and full documentation can be found [on GitHub](https://github.com/vingkan/prometheus).
