@@ -51,23 +51,16 @@ slack.postTo = (params) => {
 }
 
 bot.started((payload) => {
-	//console.log('Payload: ', payload);
 	console.log('Bot started.');
 });
 
 bot.message((message) => {
-	//console.log(message);
 	if(isConversing(message)){
 		if(message.text.indexOf('How many users were active') > -1){
 			slack.postTo({
 				channel: 'metrics',
 				text: 'Let me check...'
 			});
-			/*bot.ws.send(JSON.stringify({
-				id: 10,
-				type: 'typing',
-				channel: 'C483A3GBG'
-			}));*/
 			epimetheus.countActiveUsers(message.text).then((res) => {
 				slack.postTo({
 					channel: 'metrics',
@@ -80,11 +73,6 @@ bot.message((message) => {
 				channel: 'metrics',
 				text: 'Let me check...'
 			});
-			/*bot.ws.send(JSON.stringify({
-				id: 10,
-				type: 'typing',
-				channel: 'C483A3GBG'
-			}));*/
 			epimetheus.countCreatedMeetings(message.text).then((res) => {
 				slack.postTo({
 					channel: 'metrics',
@@ -97,11 +85,6 @@ bot.message((message) => {
 				channel: 'metrics',
 				text: 'Let me check...'
 			});
-			/*bot.ws.send(JSON.stringify({
-				id: 10,
-				type: 'typing',
-				channel: 'C483A3GBG'
-			}));*/
 			epimetheus.topTenCreators(message.text).then((res) => {
 				slack.postTo({
 					channel: 'metrics',
@@ -109,18 +92,16 @@ bot.message((message) => {
 				});
 			});
 		}
-		else if(message.text === 'map users'){
+		else if(message.text.indexOf('How did the demo impact users') > -1){
 			slack.postTo({
 				channel: 'metrics',
 				text: 'Let me check...'
 			});
-			epimetheus.mapUsers(message.text).then((res) => {
+			epimetheus.demoAnalysis(message.text).then((res) => {
 				slack.postTo({
 					channel: 'metrics',
 					text: res.text
 				});
-			}).catch((err) => {
-				console.error(err);
 			});
 		}
 		else{
