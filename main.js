@@ -53,6 +53,7 @@ bot.calculations = {
 				}).length
 			}
 		},
+		limit: 20,
 		filter: (user) => {
 			return user.creates > 0;
 		},
@@ -65,7 +66,7 @@ bot.calculations = {
 	},
 
 	compareDemo: {
-		question: 'How many users tried the demo {in date range}?',
+		question: 'What were conversion rates for the demo {in date range}?',
 		type: 'compare',
 		state: {
 			usedDemo: {

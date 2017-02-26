@@ -198,7 +198,7 @@ module.exports = {
 				}
 				var top = Object.keys(leaderboard).map((uid) => {
 					return leaderboard[uid];
-				}).filter(calc.filter).sort(calc.sort).slice(0, 10).map((leader) => {
+				}).filter(calc.filter).sort(calc.sort).slice(0, calc.limit).map((leader) => {
 					leader.profile = USER_MAP[leader.uid].profile;
 					return leader;
 				});
