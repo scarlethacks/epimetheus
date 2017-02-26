@@ -92,6 +92,23 @@ bot.message((message) => {
 				});
 			});
 		}
+		else if(message.text.indexOf('Who were the top creators') > -1){
+			slack.postTo({
+				channel: 'metrics',
+				text: 'Let me check...'
+			});
+			/*bot.ws.send(JSON.stringify({
+				id: 10,
+				type: 'typing',
+				channel: 'C483A3GBG'
+			}));*/
+			epimetheus.topTenCreators(message.text).then((res) => {
+				slack.postTo({
+					channel: 'metrics',
+					text: res.text
+				});
+			});
+		}
 		else if(message.text === 'map users'){
 			slack.postTo({
 				channel: 'metrics',

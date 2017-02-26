@@ -79,6 +79,10 @@ var getVisits = (params) => {
 			var promises = [];
 			var userMap = snapshot.val();
 			console.log(`Retrieved ${Object.keys(userMap).length} users in date range.`);
+			if(userMap['ANONYMOUS_USER']){
+				delete userMap['ANONYMOUS_USER'];
+			}
+			console.log(userMap['ANONYMOUS_USER'], 'anon')
 			for(var uid in userMap){
 				if(USER_MAP[uid]){
 					var entry = USER_MAP[uid];
@@ -127,39 +131,38 @@ var getVisits = (params) => {
 			}
 			var prom = Promise.all(promises);
 			console.log(prom);
-			try{
-				prom.then((requests) => {
-					console.log(`All ${requests.length} promises received.`);
-					for(var r = 0; r < requests.length; r++){
-						var req = requests[r];
-						var uid = req.uid;
-						var visits = req.visits;
-						if(!USER_MAP[uid]){
-							USER_MAP[uid] = {
-								from: req.from,
-								to: req.to,
-								visits: {}
-							}
-						}
-						if(USER_MAP[uid].from > req.from){
-							USER_MAP[uid].from = req.from;
-						}
-						if(USER_MAP[uid].to < req.to){
-							USER_MAP[uid].to = req.to;
-						}
-						for(var vid in visits){
-							USER_MAP[uid].visits[vid] = visits[vid];
+			prom.then((requests) => {
+				console.log(`All ${requests.length} promises received.`);
+				for(var r = 0; r < requests.length; r++){
+					var req = requests[r];
+					var uid = req.uid;
+					var visits = req.visits;
+					if(!USER_MAP[uid]){
+						USER_MAP[uid] = {
+							from: req.from,
+							to: req.to,
+							visits: {}
 						}
 					}
-					resolve({
-						ready: true
-					});
-				}).catch(reject);
-			}
-			catch(e){
-				console.log(e);
-				console.error(e);
-			}
+					if(USER_MAP[uid].from > req.from){
+						USER_MAP[uid].from = req.from;
+					}
+					if(USER_MAP[uid].to < req.to){
+						USER_MAP[uid].to = req.to;
+					}
+					if(userMap[uid]){
+						if(userMap[uid].profile){
+							USER_MAP[uid].profile = userMap[uid].profile || {};
+						}
+					}
+					for(var vid in visits){
+						USER_MAP[uid].visits[vid] = visits[vid];
+					}
+				}
+				resolve({
+					ready: true
+				});
+			}).catch(reject);
 		}).catch(reject);
 	});
 }
@@ -224,9 +227,6 @@ module.exports = {
 				from: from,
 				to: to
 			}).then((res) => {
-				console.log(res);
-				var dur = Math.floor((Date.now() - startTime) / 1000);
-				console.log(`Fetched in ${dur.toFixed(1)} sec.`);
 
 				var meetingCount = 0;
 				for(var uid in USER_MAP){
@@ -246,12 +246,72 @@ module.exports = {
 					}).length;
 				}
 
-				console.log(`Computed in ${dur.toFixed(1)} sec.`);
+				var dur = Math.floor((Date.now() - startTime) / 1000);
+				console.log(`Completed in ${dur.toFixed(1)} sec.`);
 				var res = `I counted ${meetingCount} created meetings.`;
 				resolve({
 					text: res
 				});
+			}).catch(reject);
 
+		});
+	},
+
+	topTenCreators: (message) => {
+		var startTime = Date.now();
+		return new Promise((resolve, reject) => {
+			console.log('Started Query: topTenCreators');
+			var range = parseDateRange(message, 'creators ');
+			var from = range[0];
+			var to = range[1];
+			getVisits({
+				from: from,
+				to: to
+			}).then((res) => {
+
+				console.log(res);
+
+				var leaderboard = {};
+				for(var uid in USER_MAP){
+					var visits = Object.keys(USER_MAP[uid].visits).map((vid) => {
+						return USER_MAP[uid].visits[vid];
+					}).filter((visit) => {
+						var keep = false;
+						var lo = visit.meta.datetime.timestamp >= from;
+						var hi = visit.meta.datetime.timestamp <= to;
+						if(lo && hi){
+							keep = true;
+						}
+						return keep;
+					});
+					var meetingCount = visits.filter((data) => {
+						return data.visit.type === 'CREATE_MEETING';
+					}).length;
+					leaderboard[uid] = {
+						uid: uid,
+						count: meetingCount
+					}
+				}
+				var top = Object.keys(leaderboard).map((uid) => {
+					return leaderboard[uid];
+				}).filter((u) => {
+					return u.count > 0;
+				}).sort((a, b) => {
+					return b.count - a.count;
+				}).slice(0, 10).map((leader) => {
+					var entry = USER_MAP[leader.uid];
+					leader.name = USER_MAP[leader.uid].profile.name || 'No Name';
+					return leader;
+				});
+
+				var leaderRes = top.map((x, i) => {return `${i+1}. ${x.name} (${x.count} meetings)`}).join('\n');
+
+				var dur = Math.floor((Date.now() - startTime) / 1000);
+				console.log(`Completed in ${dur.toFixed(1)} sec.`);
+				var res = `Here they are!\n${leaderRes}`;
+				resolve({
+					text: res
+				});
 			}).catch(reject);
 
 		});
