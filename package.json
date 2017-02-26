@@ -1,9 +1,26 @@
 {
+  "name": "epimetheus",
+  "version": "0.0.1",
+  "description": "Easily monitor web analytics and insights by aggregating Prometheus data in Firebase via a Slack bot.",
+  "keywords": [
+    "Analytics",
+    "Prometheus",
+    "Firebase",
+    "Slackbot"
+  ],
+  "author": "Vinesh Kannan <vinesh@omnipointment.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vingkan/epimetheus"
+  },
+  "scripts": {
+    "start": "node main"
+  },
   "dependencies": {
     "dotenv": "^4.0.0",
     "express": "^4.13.3",
     "firebase": "^3.6.10",
-    "slack": "^8.2.1",
-    "slackbots": "^0.4.0"
+    "slack": "^8.2.1"
   }
 }
