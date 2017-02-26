@@ -10,6 +10,8 @@ firebase.initializeApp(config);
 var db = firebase.database();
 
 
+var USER_LAST_VISITS = false;
+
 var USER_MAP = {};
 
 var getVisitsByUser = (params) => {
@@ -33,98 +35,108 @@ var getVisitsByUser = (params) => {
 	});
 }
 
+var getVisitsCallback = (params, resolve, reject, userMap) => {
+	var promises = [];
+	//console.log(`Retrieved ${Object.keys(userMap).length} users in date range.`);
+	if(userMap['ANONYMOUS_USER']){
+		delete userMap['ANONYMOUS_USER'];
+	}
+	for(var uid in userMap){
+		if(USER_MAP[uid]){
+			var entry = USER_MAP[uid];
+			var needOlder = entry.from > params.from;
+			var needNewer = entry.to < params.to;
+			if(needNewer && needOlder){
+				var p = getVisitsByUser({
+					uid: uid,
+					from: params.from,
+					to: params.to
+				});
+				promises.push(p);
+				//console.log(`Full promise sent for ${uid}`);
+			}
+			else if(needOlder){
+				var p = getVisitsByUser({
+					uid: uid,
+					from: params.from,
+					to: entry.from
+				});
+				promises.push(p);
+				//console.log(`Partial promise sent for ${uid}`);
+			}
+			else if(needNewer){
+				var p = getVisitsByUser({
+					uid: uid,
+					from: entry.to,
+					to: params.to
+				});
+				promises.push(p);
+				//console.log(`Partial promise sent for ${uid}`);
+			}
+			else{
+				// Sufficient data
+			}
+		}
+		else{
+			var p = getVisitsByUser({
+				uid: uid,
+				from: params.from,
+				to: params.to
+			});
+			promises.push(p);
+			//console.log(`Full promise sent for ${uid}`);
+		}
+	}
+	var prom = Promise.all(promises);
+	//console.log(prom);
+	prom.then((requests) => {
+		//console.log(`All ${requests.length} promises received.`);
+		for(var r = 0; r < requests.length; r++){
+			var req = requests[r];
+			var uid = req.uid;
+			var visits = req.visits;
+			if(!USER_MAP[uid]){
+				USER_MAP[uid] = {
+					from: req.from,
+					to: req.to,
+					visits: {}
+				}
+			}
+			if(USER_MAP[uid].from > req.from){
+				USER_MAP[uid].from = req.from;
+			}
+			if(USER_MAP[uid].to < req.to){
+				USER_MAP[uid].to = req.to;
+			}
+			if(userMap[uid]){
+				if(userMap[uid].profile){
+					USER_MAP[uid].profile = userMap[uid].profile || {};
+				}
+			}
+			for(var vid in visits){
+				USER_MAP[uid].visits[vid] = visits[vid];
+			}
+		}
+		resolve({
+			ready: true
+		});
+	}).catch(reject);
+}
+
 var getVisits = (params) => {
 	return new Promise((resolve, reject) => {
-		var ref = db.ref('prometheus/users');
-		var query = ref.orderByChild('lastVisit').startAt(params.from).endAt(Date.now()); // Because more recent users can still have relevant visits
-		query.once('value', (snapshot) => {
-			var promises = [];
-			var userMap = snapshot.val();
-			//console.log(`Retrieved ${Object.keys(userMap).length} users in date range.`);
-			if(userMap['ANONYMOUS_USER']){
-				delete userMap['ANONYMOUS_USER'];
-			}
-			for(var uid in userMap){
-				if(USER_MAP[uid]){
-					var entry = USER_MAP[uid];
-					var needOlder = entry.from > params.from;
-					var needNewer = entry.to < params.to;
-					if(needNewer && needOlder){
-						var p = getVisitsByUser({
-							uid: uid,
-							from: params.from,
-							to: params.to
-						});
-						promises.push(p);
-						//console.log(`Full promise sent for ${uid}`);
-					}
-					else if(needOlder){
-						var p = getVisitsByUser({
-							uid: uid,
-							from: params.from,
-							to: entry.from
-						});
-						promises.push(p);
-						//console.log(`Partial promise sent for ${uid}`);
-					}
-					else if(needNewer){
-						var p = getVisitsByUser({
-							uid: uid,
-							from: entry.to,
-							to: params.to
-						});
-						promises.push(p);
-						//console.log(`Partial promise sent for ${uid}`);
-					}
-					else{
-						// Sufficient data
-					}
-				}
-				else{
-					var p = getVisitsByUser({
-						uid: uid,
-						from: params.from,
-						to: params.to
-					});
-					promises.push(p);
-					//console.log(`Full promise sent for ${uid}`);
-				}
-			}
-			var prom = Promise.all(promises);
-			//console.log(prom);
-			prom.then((requests) => {
-				//console.log(`All ${requests.length} promises received.`);
-				for(var r = 0; r < requests.length; r++){
-					var req = requests[r];
-					var uid = req.uid;
-					var visits = req.visits;
-					if(!USER_MAP[uid]){
-						USER_MAP[uid] = {
-							from: req.from,
-							to: req.to,
-							visits: {}
-						}
-					}
-					if(USER_MAP[uid].from > req.from){
-						USER_MAP[uid].from = req.from;
-					}
-					if(USER_MAP[uid].to < req.to){
-						USER_MAP[uid].to = req.to;
-					}
-					if(userMap[uid]){
-						if(userMap[uid].profile){
-							USER_MAP[uid].profile = userMap[uid].profile || {};
-						}
-					}
-					for(var vid in visits){
-						USER_MAP[uid].visits[vid] = visits[vid];
-					}
-				}
-				resolve({
-					ready: true
-				});
+		if(USER_LAST_VISITS){
+			getVisitsCallback(params, resolve, reject, USER_LAST_VISITS);
+		}
+		else{
+			var ref = db.ref('prometheus/users');
+			var query = ref.orderByChild('lastVisit').startAt(params.from).endAt(Date.now()); // Because more recent users can still have relevant visits
+			query.once('value', (snapshot) => {
+				var userMap = snapshot.val();
+				USER_LAST_VISITS = userMap;
+				getVisitsCallback(params, resolve, reject, userMap);
 			}).catch(reject);
-		}).catch(reject);
+		}
 	});
 }
 
