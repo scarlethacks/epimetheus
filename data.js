@@ -158,18 +158,18 @@ module.exports = {
 				from: calc.from,
 				to: calc.to
 			}).then((res) => {
-				var count = 0;
+				var state = calc.state || {};
 				for(var uid in USER_MAP){
 					var visits = getVisitsInRange({
 						uid: uid,
 						from: calc.from,
 						to: calc.to
 					});
-					count += calc.aggregator(visits);
+					state = calc.aggregator(state, visits);
 				}
 				var dur = Math.floor((Date.now() - startTime) / 1000);
 				console.log(`Completed in ${dur.toFixed(1)} sec.`);
-				var res = calc.response(count);
+				var res = calc.response(state);
 				resolve({
 					text: res
 				});
@@ -217,70 +217,31 @@ module.exports = {
 		});
 	},
 
-	demoAnalysis: (message) => {
+	compare: (calc) => {
 		var startTime = Date.now();
 		return new Promise((resolve, reject) => {
-			console.log('Started Query: demoAnalysis');
-			var range = parseDateRange(message, 'convert ');
-			var from = range[0];
-			var to = range[1];
-
+			console.log('Started Query: ' + calc.cid);
 			getVisits({
-				from: from,
-				to: to
+				from: calc.from,
+				to: calc.to
 			}).then((res) => {
-				//console.log('Visits:', res);
-
-				var count = {};
-				var total = 0;
-
+				var state = calc.state || {};
 				for(var uid in USER_MAP){
 					var entry = USER_MAP[uid];
 					var visits = getVisitsInRange({
 						uid: uid,
-						from: from,
-						to: to
+						from: calc.from,
+						to: calc.to
 					});
-
-					var status = false;
-
-					for(var v = 0; v < visits.length; v++){
-						var visit = visits[v].visit;
-						if(visit.mid){
-							if(visit.mid === 'sample'){
-								status = true;
-								break;
-							}
-						}
-					}
-
-					if(!count[status]){
-						count[status] = 0;
-					}
-
-					if(visits.length > 0){
-						count[status]++;
-						total++;
-					}
+					state = calc.aggregator(state, visits);
 				}
-
-				var res = `Conversion rates for demo page:\n`;
-				var cat = {
-					true: 'Tried Demo',
-					false: 'Did not try Demo'
-				}
-				for(var s in {true: 1, false: 1}){
-					var avg = (count[s] / total) * 100;
-					res += `${cat[s]}: ${avg.toFixed(2)}%\n`;
-				}
-
+				var res = calc.response(state);
 				var dur = Math.floor((Date.now() - startTime) / 1000);
 				console.log(`Completed in ${dur.toFixed(1)} sec.`);
 				resolve({
 					text: res
 				});
 			}).catch(reject);
-
 		});
 	}
 

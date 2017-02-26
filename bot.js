@@ -1,4 +1,4 @@
-var epimetheus = require('./data');
+var dataAnalysis = require('./data');
 var dotenv = require('dotenv');
 	dotenv.load();
 
@@ -97,52 +97,6 @@ var parseDateRange = (message, delimiter) => {
 	return [from, to];
 }
 
-
-bot.calculations = {
-	countUsers: {
-		question: 'How many fun users were active {in date range}?',
-		type: 'count',
-		aggregator: (visits) => {
-			return 1;
-		},
-		response: (count) => {
-			return `I counted ${count} users.`;
-		}
-	},
-	countMeetings: {
-		question: 'How many meetings were active {in date range}?',
-		type: 'count',
-		aggregator: (visits) => {
-			return visits.filter((v) => {
-				return v.visit.mid || false;
-			}).length;
-		},
-		response: (count) => {
-			return `I counted ${count} active meetings.`;
-		}
-	},
-	rankCreators: {
-		question: 'Who were the top meeting creators {in date range}?',
-		type: 'rank',
-		aggregator: (visit) => {
-			return {
-				creates: visit.filter((v) => {
-					return v.visit.type === 'CREATE_MEETING';
-				}).length
-			}
-		},
-		filter: (user) => {
-			return user.creates > 0;
-		},
-		sort: (a, b) => {
-			return b.creates - a.creates;
-		},
-		response: (user, rank) => {
-			return `${user.profile.name} (${user.creates} meetings.)`;
-		}
-	}
-}
-
 bot.init = () => {
 	slack.auth.test({token: slackBotToken}, (err, data) => {});
 	bot.started((payload) => {
@@ -151,104 +105,38 @@ bot.init = () => {
 	bot.listen({token: slackToken});
 	bot.message((message) => {
 		if(isConversing(message)){
-			slack.postTo({
-				channel: slackChannel,
-				text: 'Let me check...'
-			});
+			var found = false;
 			for(var cid in bot.calculations){
 				var calc = bot.calculations[cid];
 				var trigger = calc.question.split('{in date range}?')[0];
 				if(message.text.indexOf(trigger) > -1){
 					var range = parseDateRange(message.text, trigger);
-					var fn = epimetheus[calc.type]
+					var fn = dataAnalysis[calc.type]
 					calc.cid = cid;
 					calc.from = range[0];
 					calc.to = range[1];
+					slack.postTo({
+						channel: slackChannel,
+						text: 'Let me check...'
+					});
 					fn(calc).then((res) => {
 						slack.postTo({
 							channel: slackChannel,
 							text: res.text
 						});
 					});
+					found = true;
 					break;
 				}
 			}
+			if(!found){
+				slack.postTo({
+					channel: slackChannel,
+					text: 'Not sure how to figure that out.'
+				});
+			}
 		}
-	})
+	});
 }
 
-bot.init();
-
-
-bot.addCalculation = () => {
-	if(message.text.indexOf('How many users were active') > -1){
-		slack.postTo({
-			channel: 'metrics',
-			text: 'Let me check...'
-		});
-		epimetheus.countActiveUsers(message.text).then((res) => {
-			slack.postTo({
-				channel: 'metrics',
-				text: res.text
-			});
-		});
-	}	
-}
-
-bot.message((message) => {
-	if(isConversing(message)){
-		if(message.text.indexOf('How many users were active') > -1){
-			slack.postTo({
-				channel: 'metrics',
-				text: 'Let me check...'
-			});
-			epimetheus.countActiveUsers(message.text).then((res) => {
-				slack.postTo({
-					channel: 'metrics',
-					text: res.text
-				});
-			});
-		}
-		else if(message.text.indexOf('How many meetings were created') > -1){
-			slack.postTo({
-				channel: 'metrics',
-				text: 'Let me check...'
-			});
-			epimetheus.countCreatedMeetings(message.text).then((res) => {
-				slack.postTo({
-					channel: 'metrics',
-					text: res.text
-				});
-			});
-		}
-		else if(message.text.indexOf('Who were the top creators') > -1){
-			slack.postTo({
-				channel: 'metrics',
-				text: 'Let me check...'
-			});
-			epimetheus.topTenCreators(message.text).then((res) => {
-				slack.postTo({
-					channel: 'metrics',
-					text: res.text
-				});
-			});
-		}
-		else if(message.text.indexOf('How did the demo page convert') > -1){
-			slack.postTo({
-				channel: 'metrics',
-				text: 'Let me check...'
-			});
-			epimetheus.demoAnalysis(message.text).then((res) => {
-				slack.postTo({
-					channel: 'metrics',
-					text: res.text
-				});
-			});
-		}
-		else{
-			var msg = `I heard: ${message.text}.`;
-			slack.postTo('metrics', msg);
-		}
-	}
-});
-
+module.exports = bot;
