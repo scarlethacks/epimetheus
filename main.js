@@ -15,7 +15,9 @@ bot.calculations = {
 			count: 0
 		},
 		aggregator: (state, visits) => {
-			state.count++;
+			if(visits.length > 0){
+				state.count++;
+			}
 			return state;
 		},
 		response: (state) => {

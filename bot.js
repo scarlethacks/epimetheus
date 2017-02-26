@@ -48,8 +48,6 @@ var DAY = HOUR *24;
 var parseDateRange = (message, delimiter) => {
 	var from = false;
 	var to = false;
-	console.log(message)
-	console.log(delimiter)
 	var range = message.split(delimiter)[1].split('?')[0];
 	var date = new Date();
 	var now = date.getTime();

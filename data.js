@@ -132,6 +132,10 @@ var uniqueList = (list) => {
 	return [...new Set(list)];
 }
 
+var clone = (obj) => {
+	return JSON.parse(JSON.stringify(obj));
+}
+
 var getVisitsInRange = (params) => {
 	return Object.keys(USER_MAP[params.uid].visits).map((vid) => {
 		return USER_MAP[params.uid].visits[vid];
@@ -158,7 +162,7 @@ module.exports = {
 				from: calc.from,
 				to: calc.to
 			}).then((res) => {
-				var state = calc.state || {};
+				var state = clone(calc.state) || {};
 				for(var uid in USER_MAP){
 					var visits = getVisitsInRange({
 						uid: uid,
@@ -167,6 +171,7 @@ module.exports = {
 					});
 					state = calc.aggregator(state, visits);
 				}
+				console.log(new Date(calc.from), '-->', new Date(calc.to))
 				var dur = Math.floor((Date.now() - startTime) / 1000);
 				console.log(`Completed in ${dur.toFixed(1)} sec.`);
 				var res = calc.response(state);
@@ -225,7 +230,7 @@ module.exports = {
 				from: calc.from,
 				to: calc.to
 			}).then((res) => {
-				var state = calc.state || {};
+				var state = clone(calc.state) || {};
 				for(var uid in USER_MAP){
 					var entry = USER_MAP[uid];
 					var visits = getVisitsInRange({
