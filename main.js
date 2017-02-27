@@ -1,6 +1,4 @@
-var Epimetheus = require('./bot');
-
-var bot = Epimetheus;
+var bot = require('./bot');
 
 var uniqueList = (list) => {
 	return [...new Set(list)]; // Thanks, Eric Elliott
