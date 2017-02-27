@@ -21,7 +21,6 @@ var convertTime = (timestamp) => {
 var isConversing = (data, botData) => {
 	var tagAt = `<@${botData.user_id}>`;
 	var tagged = data.text.indexOf(tagAt) > -1;
-	console.log(tagged, data, botData)
 	var dts = convertTime(data.ts);
 	var msg = data.type === 'message';
 	var other = !data.bot_id;
@@ -86,7 +85,8 @@ var parseDateRange = (message, delimiter) => {
 				to = new Date(dates[1]).getTime();
 			}
 			catch(e){
-				console.log(dates);
+				console.error('Error parsing dates!');
+				console.error(dates);
 			}
 			if(!(from && to)){
 				from = now - (now % DAY);
@@ -120,7 +120,7 @@ var main = (botData) => {
 					calc.from = range[0];
 					calc.to = range[1];
 					slack.postTo({
-						channel: slackChannel,
+						channel: message.channel,//slackChannel,
 						text: 'Let me check...'
 					});
 					fn(calc).then((res) => {
@@ -135,7 +135,7 @@ var main = (botData) => {
 			}
 			if(!found){
 				slack.postTo({
-					channel: slackChannel,
+					channel: message.channel,//slackChannel,
 					text: 'Not sure how to figure that out.'
 				});
 			}
