@@ -18,12 +18,15 @@ var convertTime = (timestamp) => {
 	return ft;
 }
 
-var isConversing = (data) => {
+var isConversing = (data, botData) => {
+	var tagAt = `<@${botData.user_id}>`;
+	var tagged = data.text.indexOf(tagAt) > -1;
+	console.log(tagged, data, botData)
 	var dts = convertTime(data.ts);
 	var msg = data.type === 'message';
 	var other = !data.bot_id;
 	var ts = dts > liveTime;
-	return (msg && other && ts);
+	return (tagged && msg && other && ts);
 }
 
 slack.postTo = (params) => {
@@ -95,14 +98,17 @@ var parseDateRange = (message, delimiter) => {
 	return [from, to];
 }
 
-bot.init = () => {
-	slack.auth.test({token: slackBotToken}, (err, data) => {});
+var main = (botData) => {
 	bot.started((payload) => {
 		console.log('Bot started.');
+		slack.postTo({
+			channel: slackChannel,
+			text: 'Let\'s get started!'
+		});
 	});
 	bot.listen({token: slackToken});
 	bot.message((message) => {
-		if(isConversing(message)){
+		if(isConversing(message, botData)){
 			var found = false;
 			for(var cid in bot.calculations){
 				var calc = bot.calculations[cid];
@@ -133,6 +139,17 @@ bot.init = () => {
 					text: 'Not sure how to figure that out.'
 				});
 			}
+		}
+	});
+}
+
+bot.init = () => {
+	slack.auth.test({token: slackBotToken}, (err, data) => {
+		if(err){
+			console.error(err);
+		}
+		else{
+			main(data);
 		}
 	});
 }
