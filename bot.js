@@ -99,48 +99,56 @@ var parseDateRange = (message, delimiter) => {
 }
 
 var main = (botData) => {
-	bot.started((payload) => {
-		console.log('Bot started.');
-		slack.postTo({
-			channel: slackChannel,
-			text: 'Let\'s get started!'
+	try {
+		bot.started((payload) => {
+			console.log('Bot started.');
+			slack.postTo({
+				channel: slackChannel,
+				text: 'Let\'s get started!'
+			});
 		});
-	});
-	bot.listen({token: slackToken});
-	bot.message((message) => {
-		if(isConversing(message, botData)){
-			var found = false;
-			for(var cid in bot.calculations){
-				var calc = bot.calculations[cid];
-				var trigger = calc.question.split('{in date range}?')[0];
-				if(message.text.indexOf(trigger) > -1){
-					var range = parseDateRange(message.text, trigger);
-					var fn = dataAnalysis[calc.type]
-					calc.cid = cid;
-					calc.from = range[0];
-					calc.to = range[1];
+		bot.listen({token: slackToken});
+		bot.message((message) => {
+			if(isConversing(message, botData)){
+				var found = false;
+				for(var cid in bot.calculations){
+					var calc = bot.calculations[cid];
+					var trigger = calc.question.split('{in date range}?')[0];
+					if(message.text.indexOf(trigger) > -1){
+						var range = parseDateRange(message.text, trigger);
+						var fn = dataAnalysis[calc.type]
+						calc.cid = cid;
+						calc.from = range[0];
+						calc.to = range[1];
+						slack.postTo({
+							channel: message.channel,//slackChannel,
+							text: 'Let me check...'
+						});
+						fn(calc).then((res) => {
+							slack.postTo({
+								channel: slackChannel,
+								text: res.text
+							});
+						});
+						found = true;
+						break;
+					}
+				}
+				if(!found){
 					slack.postTo({
 						channel: message.channel,//slackChannel,
-						text: 'Let me check...'
+						text: 'Not sure how to figure that out.'
 					});
-					fn(calc).then((res) => {
-						slack.postTo({
-							channel: slackChannel,
-							text: res.text
-						});
-					});
-					found = true;
-					break;
 				}
 			}
-			if(!found){
-				slack.postTo({
-					channel: message.channel,//slackChannel,
-					text: 'Not sure how to figure that out.'
-				});
-			}
-		}
-	});
+		});
+	} catch(err) {
+		slack.postTo({
+			channel: message.channel,
+			text: 'Something went wrong: ${err}.'
+		});
+		main(botData);
+	}
 }
 
 bot.init = () => {

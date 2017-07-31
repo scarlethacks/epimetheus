@@ -7,6 +7,7 @@ var config = {
 	databaseURL: process.env.FIREBASE_DATABASE_URL
 };
 firebase.initializeApp(config);
+firebase.auth().signInAnonymously();
 var db = firebase.database();
 
 
